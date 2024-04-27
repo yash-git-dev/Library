@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/csv"
+	"fmt"
 	"net/http"
 	"os"
 	constants "root/Constants"
@@ -114,7 +115,7 @@ func BookPOST(c *gin.Context) {
 	}
 
 	if err := writeToCSV(book); err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to add book" + err.Error()})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to add book: " + err.Error()})
 		return
 	}
 
@@ -123,9 +124,9 @@ func BookPOST(c *gin.Context) {
 }
 
 func writeToCSV(book Book) error {
-	file, err := os.OpenFile("regularUser.csv", os.O_APPEND|os.O_WRONLY|os.O_CREATE|os.O_RDWR, 0644)
+	file, err := os.OpenFile("regularUser.csv", os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open file:%v", err)
 	}
 	defer file.Close()
 
@@ -133,12 +134,12 @@ func writeToCSV(book Book) error {
 
 	records, err := reader.ReadAll()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read file:%v", err)
 	}
 
 	var lastIndex int
-	for i, record := range records {
-		if len(record) == 0 {
+	for i := len(records) - 1; i >= 0; i-- {
+		if len(records[i]) > 0 {
 			lastIndex = i
 			break
 		}
@@ -146,14 +147,20 @@ func writeToCSV(book Book) error {
 
 	records[lastIndex] = []string{book.Name, book.Author, strconv.Itoa(book.PublicationYear)}
 
-	file.Seek(0, 0)
+	_, err = file.Seek(0, 0)
+	if err != nil {
+		return fmt.Errorf("failed to seek at initial point of file:%v", err)
+	}
 
-	file.Truncate(0)
+	err = file.Truncate(0)
+	if err != nil {
+		return fmt.Errorf("failed to truncate file:%v", err)
+	}
 
 	writer := csv.NewWriter(file)
 
 	if err := writer.WriteAll(records); err != nil {
-		return err
+		return fmt.Errorf("failed to write file:%v", err)
 	}
 
 	return nil

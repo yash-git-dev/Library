@@ -14,6 +14,10 @@ FROM alpine:latest
 
 WORKDIR /app
 
+COPY regularUser.csv /app
+
+COPY adminUser.csv /app
+
 COPY --from=builder /app/main .
 
 EXPOSE 8000
